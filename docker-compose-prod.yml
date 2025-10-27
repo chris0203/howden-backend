@@ -1,0 +1,37 @@
+
+networks:
+  web-network:
+
+services:
+    app:
+      image: serversideup/php:8.3-fpm-nginx
+      container_name: howden-app
+      ports:
+        - "8800:8080"
+      volumes:
+        - .:/var/www/html
+      networks:
+        - web-network
+      extra_hosts:
+        - "host.docker.internal:host-gateway"
+
+    mysql:
+      container_name: howden-db
+      image: mysql:9.1.0
+      ports:
+        - 3310:3306
+      environment:
+        MYSQL_DATABASE: howden
+        MYSQL_USER: howden
+        MYSQL_PASSWORD: howden1234!
+        MYSQL_ROOT_PASSWORD: howden1234!
+        ALLOW_EMPTY_PASSWORD: yes
+      command:
+        - --bind-address=0.0.0.0
+      volumes:
+        - ./mysql:/var/lib/mysql
+      networks:
+        - web-network
+    
+
+
