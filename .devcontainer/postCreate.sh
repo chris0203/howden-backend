@@ -11,5 +11,3 @@ php artisan event:cache
 
 php artisan migrate --force
 php artisan db:seed --force
-
-php artisan vendor:publish --force --tag=livewire:assets
