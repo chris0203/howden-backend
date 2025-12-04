@@ -10,6 +10,11 @@ services:
       container_name: howden-app
       ports:
         - "8888:8080"
+      environment:
+        # Customize PHP with environment variables
+        PHP_OPCACHE_ENABLE: "1"
+        PHP_MEMORY_LIMIT: "512M"
+
       volumes:
         - ../:/var/www/html
       networks:

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, Notifiable, SoftDeletes;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that should be mutated to dates.
@@ -33,6 +34,15 @@ class User extends Authenticatable
     //     'address', 'city', 'state', 'country',
     //     'company'
     // ];
+    
+    /**
+     * User model
+     *
+     * Hint to static analyzers/linters that Sanctum augments this model with
+     * the createToken method via the HasApiTokens trait.
+     *
+     * @method \Laravel\Sanctum\NewAccessToken createToken(string $name, array $abilities = ['*'], \DateTimeInterface|null $expiresAt = null)
+     */
     
     /**
      * The attributes that aren't mass assignable.
