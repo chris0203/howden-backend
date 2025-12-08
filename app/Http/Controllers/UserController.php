@@ -54,15 +54,37 @@ class UserController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', 'min:8'],
+            'role_id' => ['required', 'integer', 'min:1'],
         ]);
         Log::info('User registered successfully: ' . $request->email);
+
+        $roleId = (int) $request->input('role_id');
+        // Validate role_id exists in SystemEnum for etype user.role
+        $roleExists = SystemEnum::where('etype', 'user.role')
+            ->where('id', $roleId)
+            ->exists();
+        if (!$roleExists) {
+            return response()->json([
+                'success' => false,
+                'code' => 'InvalidRole',
+                'message' => 'Provided role_id does not exist in user.role enums.'
+            ], 422);
+        }
+
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'staff_id' => 'staff_' . uniqid(),
-            'role_id' => SystemEnum::getIdByName('user.role', 'admin'),
             'password' => Hash::make($request->password),
+        ]);
+
+        // Save role assignment in UserRole pivot
+        UserRole::create([
+            'user_id' => $user->id,
+            'role_id' => $roleId,
+            'ends_at' => null,
+            'is_active' => 1,
         ]);
 
         return response()->json([
@@ -75,6 +97,9 @@ class UserController extends Controller
     {
         $start = microtime(true);
         $user = Auth::user();
+        if ($user) {
+            $user->load(['role.role']);
+        }
 
         Log::info('Admin profile accessed: ' . $user->email, [
             'execution_time' => microtime(true) - $start
@@ -272,6 +297,99 @@ class UserController extends Controller
             'note' => 'All users use password "password". Adjust role_mode or role param to control assignment.'
         ], 201);
     }
+
+    public function updateUser(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'name' => ['sometimes', 'string', 'max:255'],
+            'email' => ['sometimes', 'email', 'max:255'],
+            'password' => ['sometimes', 'nullable', 'string', 'min:8'],
+            'role_id' => ['sometimes', 'integer', 'min:1'],
+        ]);
+
+        $user = User::find((int)$id);
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'code' => 'UserNotFound',
+            ], 404);
+        }
+
+        // Ensure email uniqueness if changing email
+        if (isset($validated['email'])) {
+            $exists = User::where('email', $validated['email'])
+                ->where('id', '!=', $user->id)
+                ->exists();
+            if ($exists) {
+                return response()->json([
+                    'success' => false,
+                    'code' => 'EmailAlreadyExists',
+                    'message' => 'Another user with the same email already exists.'
+                ], 409);
+            }
+            $user->email = $validated['email'];
+        }
+        if (isset($validated['name'])) {
+            $user->name = $validated['name'];
+        }
+        // Update password only if provided and non-empty
+        if (array_key_exists('password', $validated) && $validated['password'] !== null && $validated['password'] !== '') {
+            $user->password = Hash::make($validated['password']);
+        }
+
+        // Optional role update via pivot
+        if (isset($validated['role_id'])) {
+            $roleId = (int)$validated['role_id'];
+            $roleExists = SystemEnum::where('etype', 'user.role')
+                ->where('id', $roleId)
+                ->exists();
+            if (!$roleExists) {
+                return response()->json([
+                    'success' => false,
+                    'code' => 'InvalidRole',
+                    'message' => 'Provided role_id does not exist in user.role enums.'
+                ], 422);
+            }
+            // Deactivate existing active roles (if any) and assign new active role
+            UserRole::where('user_id', $user->id)
+                ->where('is_active', 1)
+                ->update(['is_active' => 0, 'ends_at' => now()]);
+            UserRole::create([
+                'user_id' => $user->id,
+                'role_id' => $roleId,
+                'ends_at' => null,
+                'is_active' => 1,
+            ]);
+        }
+
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'data' => $user
+        ], 200);
+    }
+
+    public function softDeleteUser(Request $request, $id)
+    {
+        $id = (int)$id;
+        $user = User::find($id);
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'code' => 'UserNotFound',
+            ], 404);
+        }
+
+        $user->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User soft-deleted',
+            'id' => $id,
+        ], 200);
+    }
+
     /**
      * Admin Portal API Ends Here
      */

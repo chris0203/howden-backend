@@ -25,8 +25,12 @@ Route::prefix('admin')->group(function () {
             Route::get('/list', [UserController::class, 'adminUserList']);
 
             // Route::post('/generate-dummy', [UserController::class, 'adminGenerateDummyUsers']);
+            Route::post('/', [UserController::class, 'register']);
             Route::post('/logout', [UserController::class, 'AdminLogout']);
             Route::post('/change-password', [UserController::class, 'changePassword']);
+
+            Route::put('/{id}', [UserController::class, 'updateUser']);
+            Route::delete('/{id}', [UserController::class, 'softDeleteUser']);
         });
 
         Route::prefix('system-enums')->group(function () {
